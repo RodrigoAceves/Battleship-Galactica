@@ -63,7 +63,27 @@ void loop() {
   //set the x and y axis positions TEST THIS PART BEFORE HAVING THE USER ON THE OTHER END CONTROL IT
   xAxis.write(90 - atan2(posofLaser[0] - space*pos[0],sqrt( pow(boardDistance,2) + pow(posofLaser[1] - space*pos[1],2) ))*180/PI);
   yAxis.write(90 - atan2(posofLaser[1] - space*pos[1],sqrt( pow(boardDistance,2) + pow(posofLaser[0] - space*pos[0],2) ))*180/PI);
+
+
+  checkPosition();
+  
 } //End MAIN loop
+
+/*
+void checkPosition(void){
+  int temp = 54;
+  int tempp = 1;
+  int send2ESP;
+  while(temp < (54 + 16) && (!positions[tempp] == temp - 54)){
+    ((analogRead(temp) > 900) && (positions[tempp] == temp - 54) )?(send2ESP = tempp):tempp++;
+    Serial.print("\n\ntemp value is ");
+    Serial.println(temp);
+    Serial.print("tempp value is ");
+    Serial.println(tempp);
+    temp++;
+  }
+}
+*/
 
 void selectPosition(void){
   while(digitalRead(42)){//While the enter button has not been pressed
@@ -90,7 +110,7 @@ void setRandom(void){
   
   //set random values to the array
   Serial.println("Finding Random Values...");
-
+  
   //Set all of the values in the array as random
   for(int i = 0; i < TARGETS; i++){
     positions[i] = random(0,maxPOS);
@@ -141,7 +161,6 @@ void setRandom(void){
   //Print the final values that were sorted
   printarray();
 }
-
 
 //Print the whole array and the time elapsed on the serial monitor
 void printarray(void){
