@@ -18,10 +18,14 @@ float posofLaser[2] = {1.5, 1.5}; //physical position of the laser from the edge
 
 //initialize a function that contains All of the possible positions
 int positions[TARGETS];
+
+//Check values
+bool checkVal = 0;
  
 void setup() { // set pins to output 
   //Begin Serial Monitor 
-  Serial.begin(9600);
+  Serial.begin(9600);   //UART 0
+  Serial1.begin(9600);  //UART 1
 
   //Initialize the servos to pin 2 and 3 on the PWM pins
   xAxis.attach(3);
@@ -58,33 +62,29 @@ void setup() { // set pins to output
   }
 } 
 
+
+
+
 void loop() { 
   selectPosition();
+  
+  if(checkVal){
+    send2ESP(); //send the position data to the ESP32
+    checkVal = LOW;
+  }
+  
   //set the x and y axis positions TEST THIS PART BEFORE HAVING THE USER ON THE OTHER END CONTROL IT
   xAxis.write(90 - atan2(posofLaser[0] - space*pos[0],sqrt( pow(boardDistance,2) + pow(posofLaser[1] - space*pos[1],2) ))*180/PI);
   yAxis.write(90 - atan2(posofLaser[1] - space*pos[1],sqrt( pow(boardDistance,2) + pow(posofLaser[0] - space*pos[0],2) ))*180/PI);
-
-
-  checkPosition();
   
 } //End MAIN loop
 
-/*
-void checkPosition(void){
-  int temp = 54;
-  int tempp = 1;
-  int send2ESP;
-  while(temp < (54 + 16) && (!positions[tempp] == temp - 54)){
-    ((analogRead(temp) > 900) && (positions[tempp] == temp - 54) )?(send2ESP = tempp):tempp++;
-    Serial.print("\n\ntemp value is ");
-    Serial.println(temp);
-    Serial.print("tempp value is ");
-    Serial.println(tempp);
-    temp++;
-  }
+void send2ESP(void){
+  //Cast the integers to a character from A to D, then cast that character to a string
+  Serial.println((String) ((char) (pos[0] + 65)) + (String) ((char) (pos[1] + 65)));
 }
-*/
 
+//Determine where the laser should be moved
 void selectPosition(void){
   while(digitalRead(42)){//While the enter button has not been pressed
     if(!digitalRead(38) || !digitalRead(39) || !digitalRead(40) || !digitalRead(41)){
@@ -97,7 +97,8 @@ void selectPosition(void){
         delay(10);
       } // End while loop
     } //end if statement
-  }//End of the while loop
+      checkVal = HIGH;
+  } //End of the while loop
 }
 
 
