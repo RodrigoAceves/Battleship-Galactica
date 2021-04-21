@@ -8,9 +8,13 @@
 //Create two servo objects
 Servo xAxis; //This servo will control the motion in one direction
 Servo yAxis; //This servo will control the motion in the other direction
+String ESPData;
+
+//---------------------------------------------------------------------------------------------------------------------------------
 
 //Keep track of the servo positions and step size
 int pos[2];
+int returnedPOS[2];
 int stepSize = 5;
 int boardDistance = 4;            //inches
 int space = 1;                    //Space from one photoresistor to another
@@ -21,6 +25,8 @@ int positions[TARGETS];
 
 //Check values
 bool checkVal = 0;
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------
  
 void setup() { // set pins to output 
   //Begin Serial Monitor 
@@ -63,32 +69,43 @@ void setup() { // set pins to output
 } 
 
 
-
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void loop() { 
   selectPosition();
-  
   if(checkVal){
-    send2ESP(); //send the position data to the ESP32
+    //Cast the integers to a character from A to D, then cast that character to a string
+    Serial.println((String) ((char) (pos[1]*4 + 65 + pos[0]))); //send the position data to the ESP32
+
+    //At this point, the other arduino should have the desired position data and we should be listening to that other user
+    //We should wait for some serial value to be returned to us
+
+
+/*DFG.KJHNSDEKLFJHNLETRKUYHNLSEJKDFTYNHLJKSRTN;HOIWSRTNFH.KJSFTNMM.HKSFGHJ[*/
+
+
+
+
+
+    while((Serial1.available() > 0)){       //while UART1 data is available
+      ESPData = Serial1.readString();       //read in the ESP DATA
+      pos[1] = (int(ESPData) - 65)%4               //Find the row
+      pos[0] = (int(ESPData) - 65 - pos[0])/4;   //find the column
+      //set the x and y axis positions 
+      xAxis.write(90 - atan2(posofLaser[0] - space*returnedPOS[0],sqrt( pow(boardDistance,2) + pow(posofLaser[1] - space*returnedPOS[1],2) ))*180/PI);
+      yAxis.write(90 - atan2(posofLaser[1] - space*returnedPOS[1],sqrt( pow(boardDistance,2) + pow(posofLaser[0] - space*returnedPOS[0],2) ))*180/PI);
+    } 
     checkVal = LOW;
   }
-  
-  //set the x and y axis positions TEST THIS PART BEFORE HAVING THE USER ON THE OTHER END CONTROL IT
-  xAxis.write(90 - atan2(posofLaser[0] - space*pos[0],sqrt( pow(boardDistance,2) + pow(posofLaser[1] - space*pos[1],2) ))*180/PI);
-  yAxis.write(90 - atan2(posofLaser[1] - space*pos[1],sqrt( pow(boardDistance,2) + pow(posofLaser[0] - space*pos[0],2) ))*180/PI);
-  
 } //End MAIN loop
 
-void send2ESP(void){
-  //Cast the integers to a character from A to D, then cast that character to a string
-  Serial.println((String) ((char) (pos[0] + 65)) + (String) ((char) (pos[1] + 65)));
-}
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 
 //Determine where the laser should be moved
 void selectPosition(void){
   while(digitalRead(42)){//While the enter button has not been pressed
     if(!digitalRead(38) || !digitalRead(39) || !digitalRead(40) || !digitalRead(41)){
-      delay(10);
+      delay(10); //debounce on press
       for(int i = 0; i < 2; i++){
         pos[i] += (digitalRead(39 + 2*i) == 0)*(pos[i] < 3) - (digitalRead(38 + 2*i) == 0)*(pos[i] > 0) + 3*((pos[i] == 0) && (digitalRead(38 + 2*i) == 0)) - 3*((pos[i] == 3) && (digitalRead(39 + 2*i) == 0));
       }
@@ -99,8 +116,10 @@ void selectPosition(void){
     } //end if statement
       checkVal = HIGH;
   } //End of the while loop
+  delay(10); // decounce on release
 }
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 
 //Find the preset random values out of the preset range 
 //into an array and make sure the random inputs are all different
@@ -162,6 +181,8 @@ void setRandom(void){
   //Print the final values that were sorted
   printarray();
 }
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 
 //Print the whole array and the time elapsed on the serial monitor
 void printarray(void){
