@@ -22,15 +22,17 @@ String ESPData;
 int pos[2];
 int returnedPOS[2];
 int stepSize = 5;
-double boardDistance = 4.25;            //inches
+double boardDistance = 4.25;      //inches
 int space = 1;                    //Space from one photoresistor to another
-float posofLaser[2] = {1.5, 1.5}; //physical position of the laser from the edges
+double posofLaser[2] = {1.5, 1.5}; //physical position of the laser from the edges {x, y}
 
 //initialize a function that contains All of the possible positions
 int positions[TARGETS];
 
 //Check values
 bool checkVal = 0;
+bool targetsHit[TARGETS]; //checks if a target has been hit before
+int allTargetsHit; //if this is equal to the number of targets all targets are hit
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
  
@@ -38,7 +40,7 @@ void setup() { // set pins to output
   
   //Begin Serial Monitor 
   Serial.begin(9600);   //UART 0
-  Serial1.begin(9600);  //UART 1
+  Serial1.begin(9600);  //UART 1 communication to the ESP32
 
   //Initialize the servos to pin 2 and 3 on the PWM pins
   xAxis.attach(3);
@@ -49,7 +51,7 @@ void setup() { // set pins to output
   //Find the preset random positions
   setRandom();
   
-  Serial.println("\n\n Random Values Set! ");
+  Serial.println("\n\nRandom Values Set!");
 
   //Initialize all of the buttons as inputs
   initBUTTONS();
@@ -59,7 +61,6 @@ void setup() { // set pins to output
 
   //initialize the LCD
   initLCD();
-  
 } 
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -138,15 +139,15 @@ void setRandom(void){
 
 //Print the whole array and the time elapsed on the serial monitor
 void printarray(void){
-  Serial.print("\nTime Elapsed (ms): ");
-  Serial.println(millis());
   // Print those random values on the Serial Monitor
   for(int i = 0; i < TARGETS; i++){
-    Serial.print("Target Number ");
-    Serial.print(i);
+    Serial.print("Target ");
+    Serial.print(i + 1);
     Serial.print(": ");
     Serial.println(positions[i]);
   }
+  Serial.print("Time Elapsed (ms): ");
+  Serial.println(millis());
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -166,18 +167,72 @@ void initLEDs(void){
 
 void initLCD(void){
   lcd.begin(16, 2);
-  lcd.print("Row: ");
-  lcd.setCursor(7, 0);
-  lcd.print("Column: ");
+  lcd.print("R:");
+  lcd.setCursor(4, 0);
+  lcd.print("C:");
+  lcd.setCursor(8, 0);
+  lcd.print("TRGS:");
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void lcdPRINT(int x_position, int y_position){
-  lcd.setCursor(5,0);
+  lcd.setCursor(2,0);
   lcd.print((char) (x_position + 65));
-  lcd.setCursor(15,0);
+  lcd.setCursor(6,0);
   lcd.print(y_position);
+  for(int i = 0; i < TARGETS; i++){
+    lcd.setCursor((14 + 3*i)%16,(14 + 3*i)/16);
+    if(targetsHit[i]){
+      lcd.print("  ");
+      checkForAllTargets();
+    } else{
+      lcd.print((char) ((positions[i] - positions[i]%4)/4+65));
+      lcd.setCursor((15 + 3*i)%16,(15 + 3*i)/16);
+      lcd.print(positions[i]%4);
+    }
+  }
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------
+
+void checkForAllTargets(void){
+  for(int i = 0; i< TARGETS; i++) if(targetsHit[i]) allTargetsHit++;
+  if(allTargetsHit == TARGETS){ 
+    GameOver();
+  } else {
+    allTargetsHit = 0;
+  }
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------
+
+void GameOver(void){
+  lcd.clear();
+  while(1){
+    for(int i = 0; i < 5; i++){
+      lcd.setCursor(3,0);
+      lcd.print("Game Over!");
+      delay(500);
+      lcd.clear();
+      delay(500);
+    }
+
+    //just a fun animation
+    for(int j =0; j < 4; j++){
+      for(int i = 0; i < 12; i++){
+        lcd.setCursor(i,j%2);
+        lcd.print("--->");
+        delay(50);
+      }
+      lcd.clear();
+      for(int i = 12; i > 0; i--){
+        lcd.setCursor(i,j%2);
+        lcd.print("<---");
+        delay(50);
+      }
+    }
+  }
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -200,52 +255,55 @@ double findAngles(double distBoard, double POS_laser_A, double POS_laser_B, doub
 void selectPosition(void){
     if(!digitalRead(38) || !digitalRead(39) || !digitalRead(40) || !digitalRead(41)){
       delay(10); //debounce on press
-      for(int i = 0; i < 2; i++){
-        pos[i] += (digitalRead(39 + 2*i) == 0)*(pos[i] < 3) - (digitalRead(38 + 2*i) == 0)*(pos[i] > 0) + 3*((pos[i] == 0) && (digitalRead(38 + 2*i) == 0)) - 3*((pos[i] == 3) && (digitalRead(39 + 2*i) == 0));
-      }
+      
+      //change the respective value depending on the button pressed
+      for(int i = 0; i < 2; i++) pos[i] += (digitalRead(39 + 2*i) == 0)*(pos[i] < 3) - (digitalRead(38 + 2*i) == 0)*(pos[i] > 0) + 3*((pos[i] == 0) && (digitalRead(38 + 2*i) == 0)) - 3*((pos[i] == 3) && (digitalRead(39 + 2*i) == 0));
+      
       //While the button is still pressed loop in here
-      while(!digitalRead(38) || !digitalRead(39) || !digitalRead(40) || !digitalRead(41)){
-        delay(10);
-      } // End while loop
+      while(!digitalRead(38) || !digitalRead(39) || !digitalRead(40) || !digitalRead(41)) delay(10);
     } //end if statement
     
     if(!digitalRead(42)){
-      //Cast the integers to a character from A to D, then cast that character to a string
-      Serial.println((String) ((char) (pos[0]*4 + 65 + pos[1]))); //send the position data to the ESP32
+      delay(10); //debounce on press
+      
+      //Cast the integers to a character from A to D, then cast that character to a string, concatenate strings with casted integer onto respective ASCII integer
+      Serial.println((String) ((char) (pos[0] + 65)) + (String) ((char) (pos[1] + 48))); //send the position data to the ESP32
+      
       //stay here so long as the button is still being pressed
-      while(!digitalRead(42)){
-        delay(10);
-      }
+      while(!digitalRead(42))delay(10); 
     }
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
+void checkHIT(void){
+  for(int i = 0; i < TARGETS; i++) if(analogRead(positions[i] + 54) > 900) {
+    targetsHit[i] = 1;
+    digitalWrite(positions[i] + 22, LOW);
+  }
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------
+
+//MAIN LOOP
 void loop() { 
   selectPosition();
 
   lcdPRINT(pos[0], pos[1]);
   
-  returnedPOS[0] = pos[0];
-  returnedPOS[1] = pos[1];
-
-  moveSERVOS();
-
-  int checker = 0;
-  for(int i = 0; i < 16; i++){
-    checker += (analogRead(54 + i) > 900)*(i);
-  }
-  checker += 1;
-  lcd.setCursor(0,1);
-  lcd.print("  ");
-  lcd.setCursor(0,1);
-  lcd.print(checker);
-
   if(Serial1.available()){      //Checks if there is data in UART1
     ESPData = Serial1.readString();
     Serial.print(ESPData);
     Serial1.print(ESPData);
   }
+
   
+  returnedPOS[0] = pos[0];
+  returnedPOS[1] = pos[1]; 
+  
+  moveSERVOS();
+
+  checkHIT();
+
   
 } //End MAIN loop
