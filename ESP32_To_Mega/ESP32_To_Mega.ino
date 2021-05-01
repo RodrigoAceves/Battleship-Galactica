@@ -8,8 +8,6 @@
 #define RXD2 16    //ESP32 UART2 pins
 #define TXD2 17
 
-
-
 // Add Wi-Fi and server info
 
 const char* ssid ="Unknown Host";   // Add your Wi-Fi ssid
@@ -22,6 +20,9 @@ const char* inTopic= ("LASER_ENTHUSIAST");      // Add the name you selected for
 
 WiFiClient espClient;
 PubSubClient client(espClient);
+
+char messages[100];
+String MegaData;
 
 void setupwifi()
 {
@@ -45,7 +46,7 @@ void reconnect(){
   {
     Serial.print("\nConnecting to");
     Serial.println(broker);
-    if(client.connect("Insert a client ID", brokerUser, brokerPass)){ // Add a client ID or Name 
+    if(client.connect("mqttx_f121fb83", brokerUser, brokerPass)){  // Add a client ID or Name 
       Serial.println("\nConnected to");
       Serial.println(broker);
       client.subscribe(inTopic);
@@ -56,9 +57,9 @@ void reconnect(){
     }
   }
 
-  void callback(char* topic, byte* payload, unsigned int length){
+void callback(char* topic, byte* payload, unsigned int LENGTH){
   String messageout= "";
-  for(int i=0; i<length; i++){
+  for(int i=0; i<LENGTH; i++){
   ((char) payload[i]);
     Serial.print((char) payload[i]);
     messageout+=(char) payload[i];
@@ -77,13 +78,11 @@ void reconnect(){
       }
       if(messageout == "LEDs off"){
       Serial1.println("All Off");
+      }
     }
-    }
-     
-  Serial.println();
-
-}
   }
+  Serial.println();
+}
 
 
 
@@ -103,12 +102,15 @@ void loop()
   if (!client.connected()){
     reconnect();
   }
-  client.loop();
-
+  
+  
+  if(Serial2.available()){      // This portion of the code reads the Arduino Mega serial monitor output through the ESP32 UART2 pins. It then sends the data to the MQTT server.
+   String MegaData = Serial2.readString();  // Changes the string to a char and publishes to the server.
+   MegaData.toCharArray(messages,10);
+   client.publish(outTopic,messages);
+   delay(500); 
+   Serial.print("The mega says: ");
+   Serial.println(MegaData);
+  }
+client.loop();
 }
-
-    
-  
-  
-
- 

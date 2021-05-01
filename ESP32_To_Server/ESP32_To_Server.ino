@@ -1,26 +1,14 @@
 
-
-
-
-//This code is to be uploaded to the ESP32.
-// This code receives data from the Arduino Mega onto the ESP32, and sends it to the MQTT Server.
-
-
-#include <WiFi.h>
+#include <WiFi.h>           
 #include <PubSubClient.h>
 
-#define RXD2 16    //ESP32 UART2 pins
-#define TXD2 17
-
-
-// Add Wi-Fi and server settings
 const char* ssid ="Unknown Host";   // Add your Wi-Fi ssid
 const char* pass= "00000000";   // Add Wi-Fi PW
 const char* brokerUser= ("RODRIGOACEVES");   // Add the user name you selected from the server page
 const char* brokerPass= ("00000000");   // Add the PW you selected from the server page
 const char* broker= ("broker.emqx.io");
-const char* outTopic = ("thisisatest");    //Add the name you selected for your subscription
-const char* inTopic= ("thisisatest");      // Add the name you selected for your subscription
+const char* outTopic = ("LASER_ENTHUSIAST");    //Add the name you selected for your subscription
+const char* inTopic= ("LASER_ENTHUSIAST");      // Add the name you selected for your subscription
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -51,7 +39,7 @@ void reconnect(){
   {
     Serial.print("\nConnecting to");
     Serial.println(broker);
-    if(client.connect("Add client ID", brokerUser, brokerPass)){   // Add client ID or Name
+    if(client.connect("mqttx_f121fb83", brokerUser, brokerPass)){   // Add client ID or Name
       Serial.println("\nConnected to");
       Serial.println(broker);
       client.subscribe(inTopic);
