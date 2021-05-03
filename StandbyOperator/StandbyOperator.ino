@@ -1,47 +1,54 @@
-//include the Servo library, include the Liquid Crystal library
-#include <Servo.h>
-#include <LiquidCrystal.h>
+//included libraries:
+#include <Servo.h>          //include the Servo library
+#include <LiquidCrystal.h>  //Include the LCD Display library
 
-//Define the number of targets and the 
-//maximum number of places that they could be
-#define TARGETS 6
-#define maxPOS 16
+//this will be constant throughtout the program:
+#define TARGETS 6 //Define the number of targets and the 
+#define maxPOS 16 //maximum number of places that they could be
 
-//Create two servo objects
+//Create two servo objects and one lcd object
 Servo xAxis; //This servo will control the motion in one direction
 Servo yAxis; //This servo will control the motion in the other direction
-LiquidCrystal lcd(9, 8, 7, 6, 5, 4);
+LiquidCrystal lcd(9, 8, 7, 6, 5, 4); //Pins 4 through 9 are for the LCD display
 
 //---------------------------------------------------------------------------------------------------------------------------------
-
-//Store the return data
-String ESPData;
+/*
+ * In the following lines are the stored data that will likely be used throught the program.
+*/
+//----------------------------------------------------------------------------------------------------------------------------------------------------
+//Store ESP32 data
+String ESPData;                     //This string will store the informaiton coming in from the ESP32
 
 //Keep track of the servo positions and step size
-int pos[2];
-int returnedPOS[2];
-int stepSize = 5;
-double boardDistance = 4.25;      //inches
-int space = 1;                    //Space from one photoresistor to another
-double posofLaser[2] = {1.5, 1.5}; //physical position of the laser from the edges {x, y}
+int pos[2];                         //This will store the position that we want the master operator to go to
+int returnedPOS[2];                 //This section stores the position that is returned by the master operator
+
+//Learn the position of the laser from the x, y, and z position and the distance of each photoresistor from one another
+// int stepSize = 5; // I dont think this line is necessary i was probably messing with a particulat funciton
+double boardDistance = 4.25;        //inches
+int space = 1;                      //Space from one photoresistor to another
+double posofLaser[2] = {1.5, 1.5}; //physical position of the laser from the edges
 
 //initialize a function that contains All of the possible positions
 int positions[TARGETS];
 
 //Check values
 bool targetsHit[TARGETS]; //checks if a target has been hit before
-int allTargetsHit; //if this is equal to the number of targets all targets are hit
+int allTargetsHit;        //if this is equal to the number of targets all targets are hit
 
 //7 Segment display: thanks to https://create.arduino.cc/projecthub/meljr/7-segment-led-displays-102-using-a-shift-register-6b6976 
 const int dataPin = 10;  // blue wire to 74HC595 pin 14
 const int latchPin = 11; // green to 74HC595 pin 12
 const int clockPin = 12; // yellow to 74HC595 pin 11
-const char common = 'c';    // common cathode
-bool decPt = false;  // decimal point display flag
-int checkVal = 1; //checks if the 7 segment display needs updating
+const char common = 'c'; // common cathode
+bool decPt = false;      // decimal point display flag
+int checkVal = 1;        //checks if the 7 segment display needs updating
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
- 
+/*
+ * In the Setup function, all of the initializations and most redundant calculations occur.
+ */
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 void setup() { // set pins to output 
   
   //Begin Serial Monitor 
@@ -49,12 +56,13 @@ void setup() { // set pins to output
   Serial1.begin(9600);  //UART 1 communication to the ESP32
   
   //Initialize the servos to pin 2 and 3 on the PWM pins
-  xAxis.attach(3);
-  yAxis.attach(2);
+  xAxis.attach(3); //x-axis servo
+  yAxis.attach(2); //y-axis Servo
 
   //Find the preset random positions
-  setRandom();
-  
+  setRandom(); 
+
+  //State on UART0 that all of the random values are set
   Serial.println("\n\nRandom Values Set!");
 
   //Initialize all of the buttons as inputs
@@ -67,16 +75,21 @@ void setup() { // set pins to output
   initLCD();
 
   //Turn on the laser
-  pinMode(44, OUTPUT);
-  digitalWrite(44, HIGH);
+  pinMode(44, OUTPUT);    //Laser is plugged into pin 44 for more control
+  digitalWrite(44, HIGH); //Laser turns on
 
   //initialize 7 segment display
   init7SEGDISP();
   
-  //Tell the ESP32 to be ready on initialization
+  //Tell the ESP32 on the Master Operator side that my side has been initialized (likely not necessary)
   Serial1.print("Program Start");
 } 
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------
+/*
+ * The following program will initialize the data pin, latch pin, and clock pin with respect to the preconfigured values as outputs.
+ */
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 void init7SEGDISP(void){
   pinMode(dataPin, OUTPUT);
   pinMode(latchPin, OUTPUT);
@@ -84,16 +97,23 @@ void init7SEGDISP(void){
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
-
+/*
+ * The following program will initialize the five buttons starting on pin 38 with the internal pull-up resistor of the microcontroller.
+ */
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 void initBUTTONS(void){
   //Enable the 5 buttons as inputs with pull up resistors for negative logic input switches
   for(int i = 0; i < 5; i++) pinMode(i + 38, INPUT_PULLUP);
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
-
-//Find the preset random values out of the preset range 
-//into an array and make sure the random inputs are all different
+/*
+ * The following program will use the internal sudorandom program of the microcontroller, but make it random by setting the random seed as some random 
+ * analog based value. It will then generate a random array that is sized 'TARGETS' as previously defined. It will then regenerate random values if there
+ * are any repeating values until all of the randomly generated values are different. Afterwards they will be sorted and ready for use in the remainder 
+ * of the program. At this point, sorting it is unnecessary but it may be of use in future projects.
+ */
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 void setRandom(void){
 
   //Set the random seed so that it would not be sudorandom
@@ -151,15 +171,18 @@ void setRandom(void){
   //Print the final values that were sorted
   printarray();
 
-
+  //General code to check the timing of my program
   Serial.println("Done.");
   Serial.print("Time Elapsed (ms): ");
   Serial.println(millis());
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
+/*
+ * In the printarray pogram, I will print the whole array on the serial monitor.
+ */
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 
-//Print the whole array and the time elapsed on the serial monitor
 void printarray(void){
   // Print those random values on the Serial Monitor
   for(int i = 0; i < TARGETS; i++){
@@ -171,7 +194,12 @@ void printarray(void){
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
-
+/*
+ * This initLEDs program initializes the LEDs that are attatched from pin 22 to pin 37 of the Arduino MEGA. It will then assuire that the output is
+ * which is redundant and likely can be removed altogether. Finally, it sets the respective LEDs for the random targets that the program finds using 
+ * the random function generator.
+ */
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 void initLEDs(void){
   //Initialize all 16 LEDs as outputs
   for(int i = 0; i < maxPOS; i++) pinMode(i + 22, OUTPUT);
@@ -184,6 +212,10 @@ void initLEDs(void){
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
+/*
+ * In the initLCD function, the strings 'R:', 'C:', and 'TRGS:' are set so that they only need to be set once in the program.
+ */
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void initLCD(void){
   lcd.begin(16, 2);
@@ -194,6 +226,14 @@ void initLCD(void){
   lcd.print("TRGS:");
 }
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------
+/*
+ * In this lcdPRINT program, the x position and y position are provided in the function then the function displays the corresponding value on the LCD 
+ * display. Afterwards, the program checks which targets are hit then turns on and off the respective targets. Here is where the function checks if 
+ * all the targets have been hit. If they all are, the program goes into the Game Over function which will be shown on another portion of the program.
+ * For the complicated looking calculation within the setCursor function of the lcd object, the program is simply processing how to space out each
+ * target so that they can all be shown neatly on the LCD display.
+ */
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void lcdPRINT(int x_position, int y_position){
@@ -217,20 +257,26 @@ void lcdPRINT(int x_position, int y_position){
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
+/*
+ * For the GameOver function, the laser is turned off, the LCD is cleared, and the program is locked into a while loop. Inside of this loop, are the 
+ * calculations for a tiny animation showing us that the game has ended.
+ */
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void GameOver(void){
-  digitalWrite(44, LOW);
-  Serial.println("Gameover");
-  lcd.clear();
-  while(1){
-    for(int i = 0; i < 5; i++){
-      lcd.setCursor(3,0);
-      lcd.print("Game Over!");
-      delay(500);
-      lcd.clear();
-      delay(500);
+  digitalWrite(44, LOW);              //Turn off the Laser
+  Serial.println("Gameover");         //print Gameover to the serial monitor
+  lcd.clear();                        //clear the LCD display
+  while(1){                           //lock the function in this loop
+    for(int i = 0; i < 5; i++){       //This for loop simplay flashes the 'Game Over!' text in the middle of the LCD display
+      lcd.setCursor(3,0);             //Set the cursor to a position so Game Over could be centered
+      lcd.print("Game Over!");        //Print Game Over on the display
+      delay(500);                     //wait
+      lcd.clear();                    //Clear the screen
+      delay(500);                     //wait
     }
-    //just a fun animation
+    
+    //just an animation... In essence there is a worm that moves Right, Left, Down, Right, Left then repeats until Game over is conveniently underlined
     for(int j =0; j < 4; j++){
       for(int i = 0; i < 12; i++){
         lcd.setCursor(i,j%2);
@@ -248,6 +294,11 @@ void GameOver(void){
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
+/*
+ * This moveSERVOS function positions the servos with respect to the positions that we want to move. The positions are calculated on the findAngles
+ * function.
+ */
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void moveSERVOS(void){
   xAxis.write(findAngles(boardDistance,returnedPOS[0],returnedPOS[1], posofLaser[0], posofLaser[1], space));
@@ -255,12 +306,26 @@ void moveSERVOS(void){
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
+/*
+ * This findAngles function finds the angles in degrees that the servo needs to go to so that the laser can point at the photoresistors.
+ */
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 
 //find the angle of sensor
 double findAngles(double distBoard, double POS_laser_A, double POS_laser_B, double POS_A, double POS_B, double sensors_space){
   return (90 - atan2(POS_laser_A - sensors_space*POS_A, sqrt( pow(distBoard,2) + pow(POS_laser_B - sensors_space*POS_B,2) ))*180/PI);
 }
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------
+/*
+ * This selectPosition function simply allows the Standby Operator (this program) to increase, decrease, or send the position depending on the button
+ * that is being pressed at the moment. It only supports having one button pressed at a time. In other words, if we press a button then keep holding
+ * that button down and press another button, then the program will not read the other button that is being pressed. This function could have been 
+ * more efficient if we convert each digital value with a number containing its binary representation but this function works fine. Two buttons that 
+ * may be pressed and registered are the position buttons and the send button. If the position button and the send button are pressed together, then
+ * the position button is released while the send button is still being pressed, then the program should send over the information to the Master 
+ * Operator within this function. Whether it happens on this loop or in another loop would not make a significant difference to our program.
+ */
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
 //Determine where the laser should be moved
@@ -290,6 +355,12 @@ void selectPosition(void){
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
+/*
+ * In the checkHIT function, the program checks each position that we have randomly generated then sets the bool array of 'targetsHIT' to high 
+ * depending on if a target has been hit. If it has not been processed previously, this function may also keep track of the total number
+ * of targets hit. That number is stored on the allTargetsHit integer. 
+ */
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void checkHIT(void){
   for(int i = 0; i < TARGETS; i++) if((analogRead(positions[i] + 54) > 900) && (targetsHit[i] == 0) ) {
@@ -300,6 +371,12 @@ void checkHIT(void){
   }
 }
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------
+/*
+ * This set7SEGDISP function was obtained from the arduino website. It is a very efficient use of the seven segment display and is therefore used
+ * in this project. A link to this function along with the other corresponding functions is provided towards the global variable initializations 
+ * section.
+ */
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void set7SEGDISP(void){
@@ -313,6 +390,12 @@ void set7SEGDISP(void){
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
+/*
+ * in myfnUpdateDisplay the user obtains the eight bits that are required for the seven segment display as an input. It does not return any value, 
+ * but it does set the respective value onto the seven segment display. Notice how the function required turning off the latchPin then setting the 
+ * new value and turning on the latchPin again after the value has been set. This will update the value to the new output.
+ */
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void myfnUpdateDisplay(byte eightBits) {
   digitalWrite(latchPin, LOW);  // prepare shift register for data
@@ -320,6 +403,11 @@ void myfnUpdateDisplay(byte eightBits) {
   digitalWrite(latchPin, HIGH); // update display
 }
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------
+/*
+ * In the myfnNumToBits function, depending on the integer number from 0 to 15 in hex, the function will return the respective number in bits 
+ * to be set to the 7 Segment Display.
+ */
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
 byte myfnNumToBits(int someNumber) {
@@ -379,12 +467,23 @@ byte myfnNumToBits(int someNumber) {
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
+/*
+ * This is the main function. This function loops rapidly through all of the programs so that out input will be seemingly instant and the input of the
+ * master operator will mostly depend on the UART communication between the ESP32 and the Arduino MEGA. The first function selectPosition simply 
+ * allows this program to listen to any inputs from the buttons to check if we would like the Master Operator to change the position of the laser. The
+ * lcdPRINT function prints those values onto the LCD. The if statement checks if the Master Operator has returned anything, and if the Master Operator
+ * has, then the returnedPOS or returned positions are calculated depending on the number that was recieved. That output is then displayed onto the 
+ * Serial Monitor for debugging purposes. In the moveSERVOS function, we use the positions that were gathered from the master operator. Then we check 
+ * if any target was hit, then update the 7 Segment Display to display the number of targets that are down.
+ */
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 
 //MAIN LOOP
 void loop() { 
   selectPosition();
 
   lcdPRINT(pos[0], pos[1]);
+
   
   if((Serial1.available() > 0)){
     
