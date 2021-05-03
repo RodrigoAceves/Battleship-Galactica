@@ -501,8 +501,6 @@ void loop() {
     Serial.println(returnedPOS[0]);
   }
   
-  
-
   //The servos only listen to returned POS
   moveSERVOS();
   
