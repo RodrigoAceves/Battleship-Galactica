@@ -1,4 +1,3 @@
-
 //include the Servo library, include the Liquid Crystal library
 #include <Servo.h>
 #include <LiquidCrystal.h>
@@ -30,23 +29,28 @@ double posofLaser[2] = {1.5, 1.5}; //physical position of the laser from the edg
 int positions[TARGETS];
 
 //Check values
-bool checkVal = 0;
 bool targetsHit[TARGETS]; //checks if a target has been hit before
 int allTargetsHit; //if this is equal to the number of targets all targets are hit
+
+//7 Segment display: thanks to https://create.arduino.cc/projecthub/meljr/7-segment-led-displays-102-using-a-shift-register-6b6976 
+const int dataPin = 10;  // blue wire to 74HC595 pin 14
+const int latchPin = 11; // green to 74HC595 pin 12
+const int clockPin = 12; // yellow to 74HC595 pin 11
+const char common = 'c';    // common cathode
+bool decPt = false;  // decimal point display flag
+int checkVal = 1; //checks if the 7 segment display needs updating
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
  
 void setup() { // set pins to output 
   
   //Begin Serial Monitor 
-  Serial.begin(9600);   //UART 0
+  Serial.begin(9600);   //UART 0 communication with the computer for testing
   Serial1.begin(9600);  //UART 1 communication to the ESP32
-
+  
   //Initialize the servos to pin 2 and 3 on the PWM pins
   xAxis.attach(3);
   yAxis.attach(2);
-
-  Serial.println("\n\n\nProgram Start!");
 
   //Find the preset random positions
   setRandom();
@@ -61,7 +65,23 @@ void setup() { // set pins to output
 
   //initialize the LCD
   initLCD();
+
+  //Turn on the laser
+  pinMode(44, OUTPUT);
+  digitalWrite(44, HIGH);
+
+  //initialize 7 segment display
+  init7SEGDISP();
+  
+  //Tell the ESP32 to be ready on initialization
+  Serial1.print("Program Start");
 } 
+
+void init7SEGDISP(void){
+  pinMode(dataPin, OUTPUT);
+  pinMode(latchPin, OUTPUT);
+  pinMode(clockPin, OUTPUT);
+}
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -108,9 +128,6 @@ void setRandom(void){
     }
   }
   
-  //Print the final values that were selected
-  printarray();
-  
   //Sort the selected values
   Serial.println("\nSorting...");
   while(repeat < TARGETS){
@@ -133,6 +150,11 @@ void setRandom(void){
   
   //Print the final values that were sorted
   printarray();
+
+
+  Serial.println("Done.");
+  Serial.print("Time Elapsed (ms): ");
+  Serial.println(millis());
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -146,8 +168,6 @@ void printarray(void){
     Serial.print(": ");
     Serial.println(positions[i]);
   }
-  Serial.print("Time Elapsed (ms): ");
-  Serial.println(millis());
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -185,7 +205,9 @@ void lcdPRINT(int x_position, int y_position){
     lcd.setCursor((14 + 3*i)%16,(14 + 3*i)/16);
     if(targetsHit[i]){
       lcd.print("  ");
-      checkForAllTargets();
+      if(allTargetsHit == TARGETS){ 
+        GameOver();
+      }
     } else{
       lcd.print((char) ((positions[i] - positions[i]%4)/4+65));
       lcd.setCursor((15 + 3*i)%16,(15 + 3*i)/16);
@@ -196,18 +218,9 @@ void lcdPRINT(int x_position, int y_position){
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
-void checkForAllTargets(void){
-  for(int i = 0; i< TARGETS; i++) if(targetsHit[i]) allTargetsHit++;
-  if(allTargetsHit == TARGETS){ 
-    GameOver();
-  } else {
-    allTargetsHit = 0;
-  }
-}
-
-//----------------------------------------------------------------------------------------------------------------------------------------------------
-
 void GameOver(void){
+  digitalWrite(44, LOW);
+  Serial.println("Gameover");
   lcd.clear();
   while(1){
     for(int i = 0; i < 5; i++){
@@ -217,7 +230,6 @@ void GameOver(void){
       lcd.clear();
       delay(500);
     }
-
     //just a fun animation
     for(int j =0; j < 4; j++){
       for(int i = 0; i < 12; i++){
@@ -265,21 +277,104 @@ void selectPosition(void){
     
     if(!digitalRead(42)){
       delay(10); //debounce on press
-      
-      //Cast the integers to a character from A to D, then cast that character to a string, concatenate strings with casted integer onto respective ASCII integer
-      Serial.println((String) ((char) (pos[0] + 65)) + (String) ((char) (pos[1] + 48))); //send the position data to the ESP32
+
+      //Position|TargetsAlreadyHit
+      //Cast the integers to a character from A to P, then cast that character to a string, concatenate strings with casted integer onto respective ASCII integer
+      Serial1.println((String) ((char) (pos[0]*4 + pos[1] + 65)) + (String) ((char) (allTargetsHit + 48))); //send the position data to the ESP32
+      Serial.println((String) ((char) (pos[0]*4 + pos[1] + 65)) + (String) ((char) (allTargetsHit + 48))); //print to serial monitor
       
       //stay here so long as the button is still being pressed
-      while(!digitalRead(42))delay(10); 
+      while(!digitalRead(42)) delay(10); 
+      
     }
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void checkHIT(void){
-  for(int i = 0; i < TARGETS; i++) if(analogRead(positions[i] + 54) > 900) {
+  for(int i = 0; i < TARGETS; i++) if((analogRead(positions[i] + 54) > 900) && (targetsHit[i] == 0) ) {
+    //if the target is hit, then the LED turns off and the value that keeps track of the target that was hit
     targetsHit[i] = 1;
     digitalWrite(positions[i] + 22, LOW);
+    allTargetsHit++;
+  }
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------
+
+void set7SEGDISP(void){
+  if(checkVal != allTargetsHit) {
+    byte bits = myfnNumToBits(allTargetsHit) ; //Display the desired digit
+    if (decPt) {
+      bits = bits | B00000001;  // add decimal point if needed
+    }
+    myfnUpdateDisplay(bits);    // display alphanumeric digit
+  }
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------
+
+void myfnUpdateDisplay(byte eightBits) {
+  digitalWrite(latchPin, LOW);  // prepare shift register for data
+  shiftOut(dataPin, clockPin, LSBFIRST, eightBits); // send data
+  digitalWrite(latchPin, HIGH); // update display
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------
+
+byte myfnNumToBits(int someNumber) {
+  switch (someNumber) {
+    case 0:
+      return B11111100;
+      break;
+    case 1:
+      return B01100000;
+      break;
+    case 2:
+      return B11011010;
+      break;
+    case 3:
+      return B11110010;
+      break;
+    case 4:
+      return B01100110;
+      break;
+    case 5:
+      return B10110110;
+      break;
+    case 6:
+      return B10111110;
+      break;
+    case 7:
+      return B11100000;
+      break;
+    case 8:
+      return B11111110;
+      break;
+    case 9:
+      return B11110110;
+      break;
+    case 10:
+      return B11101110; // Hexidecimal A
+      break;
+    case 11:
+      return B00111110; // Hexidecimal b
+      break;
+    case 12:
+      return B10011100; // Hexidecimal C
+      break;
+    case 13:
+      return B01111010; // Hexidecimal d
+      break;
+    case 14:
+      return B10011110; // Hexidecimal E
+      break;
+    case 15:
+      return B10001110; // Hexidecimal F
+      break;  
+    default:
+      return B10010010; // Error condition, displays three horizontal bars
+      break;   
   }
 }
 
@@ -291,19 +386,32 @@ void loop() {
 
   lcdPRINT(pos[0], pos[1]);
   
-  if(Serial1.available()){      //Checks if there is data in UART1
+  if((Serial1.available() > 0)){
+    
+    //reads what we recieved from the 
     ESPData = Serial1.readString();
-    Serial.print(ESPData);
-    Serial1.print(ESPData);
+    int temp = (int) ESPData.toInt();
+    Serial.println(ESPData);
+    
+    //returnedPOS will be the returned positions from the master operator
+    returnedPOS[0] = (temp)%4;
+    returnedPOS[1] = (temp - returnedPOS[1])/4;
+    Serial.print("Row: ");
+    Serial.println(returnedPOS[1]);
+    Serial.print("Colunm: ");
+    Serial.println(returnedPOS[0]);
   }
+  
+  
 
-  
-  returnedPOS[0] = pos[0];
-  returnedPOS[1] = pos[1]; 
-  
+  //The servos only listen to returned POS
   moveSERVOS();
-
+  
+  //check if one of the targets were hit
   checkHIT();
 
+  set7SEGDISP();
+
+  checkVal = allTargetsHit;
   
 } //End MAIN loop

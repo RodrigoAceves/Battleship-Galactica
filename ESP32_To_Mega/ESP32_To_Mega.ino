@@ -24,14 +24,13 @@ PubSubClient client(espClient);
 char messages[100];
 String MegaData;
 
-void setupwifi()
-{
+//----------------------------------------------------------------------------------------------------------------------------------------------------
+
+void setupwifi(){
   delay(100);
   Serial.println("\nConnecting to");
   Serial.println(ssid);
-
   WiFi.begin(ssid, pass);
-
   while(WiFi.status() != WL_CONNECTED)
   {
     delay(100);
@@ -41,9 +40,10 @@ void setupwifi()
   Serial.println(ssid);
 }
 
+//----------------------------------------------------------------------------------------------------------------------------------------------------
+
 void reconnect(){
-  while(!client.connected())
-  {
+  while(!client.connected()){
     Serial.print("\nConnecting to");
     Serial.println(broker);
     if(client.connect("mqttx_f121fb83", brokerUser, brokerPass)){  // Add a client ID or Name 
@@ -54,8 +54,10 @@ void reconnect(){
       Serial.println("\nTrying connect again");
       delay(5000);
     }
-    }
   }
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void callback(char* topic, byte* payload, unsigned int LENGTH){
   String messageout= "";
@@ -65,26 +67,27 @@ void callback(char* topic, byte* payload, unsigned int LENGTH){
     messageout+=(char) payload[i];
     if(Serial1.available()){    //Checks if Arduino Mega UART1 is available
       if(messageout == "Left"){   //If the server output matches the string, it sends a string to the Arduino Mega UART1
-      Serial1.println("Go Left");
+        Serial1.println("Go Left");
       }
       if(messageout == "Right"){
-      Serial1.println("Go Right");
+        Serial1.println("Go Right");
       }
       if(messageout == "Up"){
-      Serial1.println("Go Up");
+        Serial1.println("Go Up");
       }
       if(messageout == "Down"){
-      Serial1.println("Go Down");
+        Serial1.println("Go Down");
       }
       if(messageout == "LEDs off"){
-      Serial1.println("All Off");
+        Serial1.println("All Off");
       }
     }
   }
   Serial.println();
+  
 }
 
-
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void setup() {
   Serial.begin(115200);
@@ -93,8 +96,21 @@ void setup() {
   setupwifi();
   client.setServer(broker, 1883);
   client.setCallback(callback);
-  
 }
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------
+
+void sendSerialData(void){
+  if(Serial2.available()){      // This portion of the code reads the Arduino Mega serial monitor output through the ESP32 UART2 pins. It then sends the data to the MQTT server.
+   String MegaData = Serial2.readString();  
+   // Changes the string to a char and publishes to the server.
+   MegaData.toCharArray(messages,10);
+   client.publish(outTopic,messages);
+   delay(500);
+  }
+}
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void loop() 
 {
@@ -103,14 +119,6 @@ void loop()
     reconnect();
   }
   
-  
-  if(Serial2.available()){      // This portion of the code reads the Arduino Mega serial monitor output through the ESP32 UART2 pins. It then sends the data to the MQTT server.
-   String MegaData = Serial2.readString();  // Changes the string to a char and publishes to the server.
-   MegaData.toCharArray(messages,10);
-   client.publish(outTopic,messages);
-   delay(500); 
-   Serial.print("The mega says: ");
-   Serial.println(MegaData);
-  }
-client.loop();
+  client.loop();
+  sendSerialData();
 }
