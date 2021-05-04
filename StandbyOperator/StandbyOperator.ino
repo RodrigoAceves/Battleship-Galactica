@@ -11,7 +11,9 @@ Servo xAxis; //This servo will control the motion in one direction
 Servo yAxis; //This servo will control the motion in the other direction
 LiquidCrystal lcd(9, 8, 7, 6, 5, 4); //Pins 4 through 9 are for the LCD display
 
-//---------------------------------------------------------------------------------------------------------------------------------
+
+
+//----------------------------------------------------------------------------------------------------------------------------------------------------
 /*
  * In the following lines are the stored data that will likely be used throught the program.
 */
@@ -21,13 +23,23 @@ String ESPData;                     //This string will store the informaiton com
 
 //Keep track of the servo positions and step size
 int pos[2];                         //This will store the position that we want the master operator to go to
+double x[16] = {113, 101, 88, 75, 
+                113, 101, 87, 77,
+                111, 99, 87, 75,
+                111, 99, 87, 75};       //Hardcoded x-y positions
+double y[16] = {3,3.5,3, 4, 
+                12, 12, 12, 12, 
+                22, 22, 22, 22,
+                31.5,31.5, 31.5,31.5};
+//int x[4] = {111, 99, 87, 75};       //Hardcoded x-y positions
+//int y[4] = {5,15,25,33};
 int returnedPOS[2];                 //This section stores the position that is returned by the master operator
 
 //Learn the position of the laser from the x, y, and z position and the distance of each photoresistor from one another
 // int stepSize = 5; // I dont think this line is necessary i was probably messing with a particulat funciton
 double boardDistance = 4.25;        //inches
 int space = 1;                      //Space from one photoresistor to another
-double posofLaser[2] = {1.5, 1.5}; //physical position of the laser from the edges
+double posofLaser[2] = {1, 1.5}; //physical position of the laser from the edges
 
 //initialize a function that contains All of the possible positions
 int positions[TARGETS];
@@ -301,8 +313,10 @@ void GameOver(void){
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void moveSERVOS(void){
-  xAxis.write(findAngles(boardDistance,returnedPOS[0],returnedPOS[1], posofLaser[0], posofLaser[1], space));
-  yAxis.write(findAngles(boardDistance,returnedPOS[1],returnedPOS[0], posofLaser[1], posofLaser[0], space));
+  xAxis.write(x[returnedPOS[0]+returnedPOS[1]*4]);
+  yAxis.write(y[returnedPOS[0]+returnedPOS[1]*4]);
+//  xAxis.write(findAngles(boardDistance,returnedPOS[0],returnedPOS[1], posofLaser[0], posofLaser[1], space, 90));
+//  yAxis.write(findAngles(boardDistance,returnedPOS[1],returnedPOS[0], posofLaser[1], posofLaser[0], space, 90));
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -312,8 +326,8 @@ void moveSERVOS(void){
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
 //find the angle of sensor
-double findAngles(double distBoard, double POS_laser_A, double POS_laser_B, double POS_A, double POS_B, double sensors_space){
-  return (90 - atan2(POS_laser_A - sensors_space*POS_A, sqrt( pow(distBoard,2) + pow(POS_laser_B - sensors_space*POS_B,2) ))*180/PI);
+double findAngles(double distBoard, double POS_laser_A, double POS_laser_B, double POS_A, double POS_B, double sensors_space,double offsets){
+  return (offsets - atan2(POS_laser_A - sensors_space*POS_A, sqrt( pow(distBoard,2) + pow(POS_laser_B - sensors_space*POS_B,2) ))*180/PI);
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -494,11 +508,11 @@ void loop() {
     
     //returnedPOS will be the returned positions from the master operator
     returnedPOS[0] = (temp)%4;
-    returnedPOS[1] = (temp - returnedPOS[1])/4;
-    Serial.print("Row: ");
-    Serial.println(returnedPOS[1]);
-    Serial.print("Colunm: ");
-    Serial.println(returnedPOS[0]);
+    returnedPOS[1] = (temp - returnedPOS[0])/4;
+//    Serial.print("Row: ");
+//    Serial.println(returnedPOS[1]);
+//    Serial.print("Colunm: ");
+//    Serial.println(returnedPOS[0]);
   }
   
   //The servos only listen to returned POS
