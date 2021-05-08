@@ -23,14 +23,14 @@ String ESPData;                     //This string will store the informaiton com
 
 //Keep track of the servo positions and step size
 int pos[2];                         //This will store the position that we want the master operator to go to
-double x[16] = {113, 101, 88, 75, 
-                113, 101, 87, 77,
-                111, 99, 87, 75,
-                111, 99, 87, 75};       //Hardcoded x-y positions
-double y[16] = {3,3.5,3, 4, 
-                12, 12, 12, 12, 
-                22, 22, 22, 22,
-                31.5,31.5, 31.5,31.5};
+int x[17] =    {0,103, 89, 76, 64, 
+                102, 89, 76, 64, 
+                103, 89, 76, 65, 
+                103, 89, 77, 65};       //Hardcoded x-y positions
+int y[17] =    {0, 14,14,15, 16, 
+                24, 23, 25, 24, 
+                35, 34, 35, 35,
+                45,44, 45,45};
 //int x[4] = {111, 99, 87, 75};       //Hardcoded x-y positions
 //int y[4] = {5,15,25,33};
 int returnedPOS[2];                 //This section stores the position that is returned by the master operator
@@ -92,9 +92,6 @@ void setup() { // set pins to output
 
   //initialize 7 segment display
   init7SEGDISP();
-  
-  //Tell the ESP32 on the Master Operator side that my side has been initialized (likely not necessary)
-  Serial1.print("Program Start");
 } 
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -139,10 +136,10 @@ void setRandom(void){
   
   //Set all of the values in the array as random
   for(int i = 0; i < TARGETS; i++){
-    positions[i] = random(0,maxPOS);
+    positions[i] = random(1,maxPOS);
   }
   
-  //Make sure none of those random values are repeating
+  //Make sure none of those random values are not repeating
   while(repeat > 0){
     //set repeat to 0
     repeat = 0;
@@ -153,7 +150,7 @@ void setRandom(void){
         //if the values should not be the same then randomize 
         //one of them and make sure the function repeats again
         if((j != i) && (positions[j] == positions[i])){
-          positions[j] = random(0,maxPOS);
+          positions[j] = random(1,maxPOS);
           repeat++;
         }
       }
@@ -191,7 +188,7 @@ void setRandom(void){
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 /*
- * In the printarray pogram, I will print the whole array on the serial monitor.
+ * In the printarray program, I will print the whole array on the serial monitor.
  */
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -313,8 +310,24 @@ void GameOver(void){
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void moveSERVOS(void){
-  xAxis.write(x[returnedPOS[0]+returnedPOS[1]*4]);
-  yAxis.write(y[returnedPOS[0]+returnedPOS[1]*4]);
+  int square = 15;
+  bool test = false;
+  for(double i = 0; i < square; i++){
+      xAxis.write((x[returnedPOS[0]+returnedPOS[1]*4 + 1] + i*pow(-1,i)/5.00));
+      yAxis.write((y[returnedPOS[0]+returnedPOS[1]*4 + 1] + i*pow(-1,i)/5.00));
+      delay(100);
+      //check if one of the targets were hit
+      checkHIT();
+      set7SEGDISP();
+      checkVal = allTargetsHit;
+
+  }
+  delay(20);
+  Serial.print("Going to :\t");
+  Serial.println(returnedPOS[0]+returnedPOS[1]*4);
+  xAxis.write(x[returnedPOS[0]+returnedPOS[1]*4+1] );
+  yAxis.write(y[returnedPOS[0]+returnedPOS[1]*4+1]);
+  
 //  xAxis.write(findAngles(boardDistance,returnedPOS[0],returnedPOS[1], posofLaser[0], posofLaser[1], space, 90));
 //  yAxis.write(findAngles(boardDistance,returnedPOS[1],returnedPOS[0], posofLaser[1], posofLaser[0], space, 90));
 }
@@ -513,10 +526,10 @@ void loop() {
 //    Serial.println(returnedPOS[1]);
 //    Serial.print("Colunm: ");
 //    Serial.println(returnedPOS[0]);
+
+    //The servos only listen to returned POS
+    moveSERVOS();
   }
-  
-  //The servos only listen to returned POS
-  moveSERVOS();
   
   //check if one of the targets were hit
   checkHIT();
@@ -524,5 +537,4 @@ void loop() {
   set7SEGDISP();
 
   checkVal = allTargetsHit;
-  
 } //End MAIN loop
