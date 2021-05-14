@@ -227,12 +227,12 @@ void initLEDs(void){
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void initLCD(void){
-  lcd.begin(16, 2);
-  lcd.print("R:");
-  lcd.setCursor(4, 0);
-  lcd.print("C:");
-  lcd.setCursor(8, 0);
-  lcd.print("TRGS:");
+  lcd.begin(16, 2); //initialize LCD
+  lcd.print("R:");  //Print on the first row and column
+  lcd.setCursor(4, 0);  //Move Cursor to the fifth column
+  lcd.print("C:");      //print on the fifth column first row
+  lcd.setCursor(8, 0);  //Mover cursor to the eighth position
+  lcd.print("TRGS:");   //Print TRGS: on the eighth position first row
 }
 
 //----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -246,13 +246,13 @@ void initLCD(void){
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void lcdPRINT(int x_position, int y_position){
-  lcd.setCursor(2,0);
-  lcd.print((char) (x_position + 65));
-  lcd.setCursor(6,0);
-  lcd.print(y_position);
-  for(int i = 0; i < TARGETS; i++){
-    lcd.setCursor((14 + 3*i)%16,(14 + 3*i)/16);
-    if(targetsHit[i]){
+  lcd.setCursor(2,0);                   //Move Cursor to second third column first row
+  lcd.print((char) (x_position + 65));  //print the x position converted to the respective character w/ ASCII table
+  lcd.setCursor(6,0);                   //Move cursor to the seventh position
+  lcd.print(y_position);                //Print the y position as an integer
+  for(int i = 0; i < TARGETS; i++){     //Loop through all of the targets
+    lcd.setCursor((14 + 3*i)%16,(14 + 3*i)/16); //Print into the LCD cursor the targets 
+    if(targetsHit[i]){                  //if the target 
       lcd.print("  ");
       if(allTargetsHit == TARGETS){ 
         GameOver();
@@ -285,7 +285,7 @@ void GameOver(void){
       delay(500);                     //wait
     }
     
-    //just an animation... In essence there is a worm that moves Right, Left, Down, Right, Left then repeats until Game over is conveniently underlined
+    //just an animation... 
     for(int j =0; j < 4; j++){
       for(int i = 0; i < 12; i++){
         lcd.setCursor(i,j%2);
@@ -310,24 +310,26 @@ void GameOver(void){
 //----------------------------------------------------------------------------------------------------------------------------------------------------
 
 void moveSERVOS(void){
-  int square = 15;
-  bool test = false;
-  for(double i = 0; i < square; i++){
+  int square = 15;                        //move through all of the positions
+  for(double i = 0; i < square; i++){     
+      //Write the hardcoded positions then oscillate around the target in both
+      //directions
       xAxis.write((x[returnedPOS[0]+returnedPOS[1]*4 + 1] + i*pow(-1,i)/5.00));
       yAxis.write((y[returnedPOS[0]+returnedPOS[1]*4 + 1] + i*pow(-1,i)/5.00));
-      delay(100);
+      delay(100);//delay for a 10th of a second
       //check if one of the targets were hit
       checkHIT();
       set7SEGDISP();
-      checkVal = allTargetsHit;
+      checkVal = allTargetsHit; //Update the check value
 
   }
   delay(20);
   Serial.print("Going to :\t");
-  Serial.println(returnedPOS[0]+returnedPOS[1]*4);
-  xAxis.write(x[returnedPOS[0]+returnedPOS[1]*4+1] );
+  Serial.println(returnedPOS[0]+returnedPOS[1]*4); //Show the positions
+  xAxis.write(x[returnedPOS[0]+returnedPOS[1]*4+1]);  //move the the respectiove positions
   yAxis.write(y[returnedPOS[0]+returnedPOS[1]*4+1]);
-  
+
+  //Removed autocalculated positions
 //  xAxis.write(findAngles(boardDistance,returnedPOS[0],returnedPOS[1], posofLaser[0], posofLaser[1], space, 90));
 //  yAxis.write(findAngles(boardDistance,returnedPOS[1],returnedPOS[0], posofLaser[1], posofLaser[0], space, 90));
 }
