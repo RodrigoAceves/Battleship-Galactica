@@ -1,6 +1,3 @@
-//Tomorrow:
-//LCD, FSR, BUTTON, 2 potentiometers
-
 //Sensors: MPU, Tilt, FSR, PIR, Ultrasonic, Sound
 //Triggers: Fan, RGB LED, BAR LED
 
@@ -20,9 +17,6 @@ int16_t gx, gy, gz;
 
 #define OUTPUT_READABLE_ACCELGYRO
 
-
-
-
 #define rowPot    A0
 #define columnPot A1
 #define button    22
@@ -35,11 +29,6 @@ int16_t gx, gy, gz;
 #define TILT      32
 #define SDA       20
 #define SCL       21
-
-
-
-
-
 
 byte RGB[3];
 byte barLED[5]; 
@@ -219,8 +208,6 @@ void loop() {
     Serial.println((int) (pot[0]*4+pot[1]));
     Serial1.println((int) (pot[0]*4+pot[1]));
     Serial.println("Position Sent");
-
-
     int positioncurrent = gy;
     for(int j = 0; j< 100; j++){
         //Check for MPU5060 Sensor
@@ -242,8 +229,6 @@ void loop() {
         #ifdef OUTPUT_BINARY_ACCELGYRO
            Serial.write((uint8_t)(gy >> 8)); Serial.write((uint8_t)(gy & 0xFF));
         #endif
-      
-
       if(positioncurrent + 100 < gy){
         motorSpeed += 20;
         if (motorSpeed >= 255) motorSpeed = 255;
@@ -253,7 +238,6 @@ void loop() {
         if (motorSpeed <= 50) motorSpeed = 50;
         Serial.println("Decreased");
       }
-      
       analogWrite(Motor,motorSpeed);
       Serial.print("Average: "); Serial.print(positioncurrent); Serial.print(" Current Value: "); Serial.println(gy);
       Serial.println(motorSpeed);
@@ -262,8 +246,6 @@ void loop() {
     Serial.print("Time (ms): ");
     Serial.println(millis() - counter);
     analogWrite(Motor,0);
-    
-    
     r = LOW;
     Serial.println("End MPU");
     GameOver();
